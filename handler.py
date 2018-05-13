@@ -13,7 +13,6 @@ def ssl_valid_time_remaining(hostname):
 
 def ssl_expires_in(hostname, buffer_days=14):
     """Check if `hostname` SSL cert expires is within `buffer_days`.
-
     Raises `AlreadyExpired` if the cert is past due
     """
     remaining = ssl_valid_time_remaining(hostname)
@@ -43,14 +42,14 @@ def ssl_expiry_datetime(hostname):
     return datetime.datetime.strptime(ssl_info['notAfter'], ssl_date_fmt)
 
 def lambda_handler(event, context):
-    domain = event['domain']
+    hostname = event['hostname']
     if_expires_in = event['if_expires_in']
-    status, expires_in = ssl_expires_in(domain, if_expires_in)
+    status, expires_in = ssl_expires_in(hostname, if_expires_in)
     if status or 1:
         sns = boto3.client('sns')
-        ACCOUNT_ID = context.invoked_function_arn.split(":")[4] # hack
+        _, _, _, region, account_id, *_ = context.invoked_function_arn.split(":") # hack
         sns.publish(
-            TopicArn='arn:aws:sns:us-east-1:{}:SSLExpiryAlerts'.format(ACCOUNT_ID),
-            Message=json.dumps({'domain': domain, "expires": expires_in.days})
+            TopicArn='arn:aws:sns:{}:{}:SSLExpiryAlerts'.format(region, account_id),
+            Message=json.dumps({'domain': hostname, "expires": expires_in.days})
         )
-    return 'SSL certificate for {} expires in {} days'.format(domain, expires_in.days)
+    return 'SSL certificate for {} expires in {} days'.format(hostname, expires_in.days)
