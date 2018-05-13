@@ -1,4 +1,4 @@
-Description: Alert when CloudFront distribution SSL certificates are close to expiring
+Description: Alert when SSL certifacate is about to expire for a hostname
 AWSTemplateFormatVersion: 2010-09-09
 Resources:
   SSLExpiryChecker:
