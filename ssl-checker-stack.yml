@@ -1,0 +1,138 @@
+Description: Alert when CloudFront distribution SSL certificates are close to expiring
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+  SSLExpiryChecker:
+    Type: 'AWS::Lambda::Function'
+    DependsOn:
+      - ExecutionRole
+      - ExecutionPolicy
+    Properties:
+      MemorySize: 128
+      Runtime: python3.6
+      Handler: check_ssl_expiration.lambda_handler
+      Timeout: 60
+      Role: !GetAtt 
+        - ExecutionRole
+        - Arn
+      Code:
+        S3Bucket: lambda-ssl-checker
+        S3Key: lambda-ssl-checker-handler.zip
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 66b8be66-2902-4a83-af55-c1e3959f312a
+  SSLExpiryAlerts:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      DisplayName: expiring-ssl-warnings
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 2c68a433-ae23-4937-9417-f74536ac66b4
+  ExecutionPolicy:
+    Type: 'AWS::IAM::Policy'
+    DependsOn:
+      - ExecutionRole
+    Properties:
+      Roles:
+        - !Ref ExecutionRole
+      PolicyName: SSLExpirationPermissions
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'sns:Publish'
+            Resource:
+              - !Ref SSLExpiryAlerts
+        Version: 2012-10-17
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: d95d0c9a-f534-4d8d-b958-11630880b18d
+  ExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Effect: Allow
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 8b891412-2709-49b0-a081-d2b2b9634860
+Outputs:
+  LambdaFunctionArn:
+    Description: ARN of Lambda function to set up event schedule
+    Value: !GetAtt 
+      - SSLExpiryChecker
+      - Arn
+  AlertingArn:
+    Description: ARN of SNS topic to subscribe to for cert alerts.
+    Value: !Ref SSLExpiryAlerts
+  AddScheduleCommand1:
+    Description: >-
+      Run this command to create a Cloudwatch event to run SSL checks on a
+      schedule
+    Value: !Join 
+      - ''
+      - - 'aws events put-rule --schedule-expression ''cron(0 12 ? * MON *)'' '
+        - '--state ENABLED '
+        - '--description ''Check SSL certificates on Mondays'' '
+        - '--name ssl-expiration-check'
+  AddScheduleCommand2:
+    Description: Run this command to send events from the scheduled alert to your function
+    Value: !Join 
+      - ''
+      - - 'aws events put-targets '
+        - '--rule ssl-expiration-check '
+        - '--targets ''Arn='
+        - !GetAtt 
+          - SSLExpiryChecker
+          - Arn
+        - ',Input="{\"topic\":\"'
+        - !Ref SSLExpiryAlerts
+        - '\"}",InputPath="",Id=Id123456789'''
+Metadata:
+  'AWS::CloudFormation::Designer':
+    8b891412-2709-49b0-a081-d2b2b9634860:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 60
+        'y': 90
+      z: 1
+      embeds: []
+    2c68a433-ae23-4937-9417-f74536ac66b4:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 180
+        'y': 90
+      z: 1
+      embeds: []
+    d95d0c9a-f534-4d8d-b958-11630880b18d:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 60
+        'y': 210
+      z: 1
+      embeds: []
+      dependson:
+        - 8b891412-2709-49b0-a081-d2b2b9634860
+    66b8be66-2902-4a83-af55-c1e3959f312a:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 180
+        'y': 210
+      z: 1
+      embeds: []
+      dependson:
+        - d95d0c9a-f534-4d8d-b958-11630880b18d
