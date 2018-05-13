@@ -50,7 +50,7 @@ def lambda_handler(event, context):
         sns = boto3.client('sns')
         ACCOUNT_ID = context.invoked_function_arn.split(":")[4] # hack
         sns.publish(
-            TopicArn='arn:aws:sns:us-east-1:{}:SSLChecker'.format(ACCOUNT_ID),
+            TopicArn='arn:aws:sns:us-east-1:{}:SSLExpiryAlerts'.format(ACCOUNT_ID),
             Message=json.dumps({'domain': domain, "expires": expires_in.days})
         )
     return 'SSL certificate for {} expires in {} days'.format(domain, expires_in.days)
